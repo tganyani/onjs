@@ -1,16 +1,16 @@
 import express from "express";
+import passport from "passport";
+
 import {
     acceptCandidate,
   appyJobById,
   createChat,
   createJob,
   deleteJobById,
-  deleteLetterById,
   dislikeJob,
   getAllChatsByRoomId,
   getAllJobs,
   getAllJobsApplied,
-  getAllLetters,
   getAllRoomsByCandidateId,
   getAllRoomsByRecruiterId,
   getJobById,
@@ -20,43 +20,43 @@ import {
   proposeCandidateByJobId,
   refuseCandidate,
   updateJob,
+  viewJobById,
 } from "../controllers/vaccancy/vaccancy.controllers.js";
 
 const vaccancyRouter = express.Router();
 
 vaccancyRouter
-  .get("/vaccancy", getAllJobs)
-  .get("/vaccancy/:id", getJobById)
-  .post("/vaccancy", createJob)
-  .patch("/vaccancy/:id",updateJob)
-  .delete("/vaccancy/:id", deleteJobById)
+  .get("/vaccancy",passport.authenticate("candidateStrategy", { session: false }), getAllJobs)
+  .get("/vaccancy/:id",passport.authenticate("hybridStrategy", { session: false }), getJobById)
+  .post("/vaccancy",passport.authenticate('recruiterStrategy',{session:false}), createJob)
+  .patch("/vaccancy/:id",passport.authenticate('recruiterStrategy',{session:false}),updateJob)
+  .delete("/vaccancy/:id",passport.authenticate('recruiterStrategy',{session:false}), deleteJobById)
 
   // apply for a job
-  .patch("/vaccancy/connect/:id", appyJobById)
+  .patch("/vaccancy/connect/:id",passport.authenticate("candidateStrategy", { session: false }), appyJobById)
   // get all jobs user connected
-  .get("/vaccancy/connected/:id", getAllJobsApplied)
+  .get("/vaccancy/connected/:id",passport.authenticate("candidateStrategy", { session: false }), getAllJobsApplied)
   // get all jobs posted by recruiter
-  .get("/vaccancy/posted/:id", getJobsByRecruiterId)
+  .get("/vaccancy/posted/:id",passport.authenticate('recruiterStrategy',{session:false}), getJobsByRecruiterId)
   // handle candidate refusal
-  .post("/vaccancy/refuse/:id", refuseCandidate)
+  .post("/vaccancy/refuse/:id",passport.authenticate("candidateStrategy", { session: false }), refuseCandidate)
   // handle candidate acceptance 
-  .post("/vaccancy/accept/:id", acceptCandidate)
+  .post("/vaccancy/accept/:id",passport.authenticate("candidateStrategy", { session: false }), acceptCandidate)
   // propose candidate
-  .post("/vaccancy/propose/:id",proposeCandidateByJobId)
+  .post("/vaccancy/propose/:id",passport.authenticate("candidateStrategy", { session: false }),proposeCandidateByJobId)
 
-  // get all letters by candidate id
-  .get("/vaccancy/letters/:id",getAllLetters)
-  .delete("/vaccancy/letters/:id",deleteLetterById)
 
   // chats and rooms
-  .get("/rooms/candidate/:id",getAllRoomsByCandidateId)
-  .get("/rooms/recruiter/:id",getAllRoomsByRecruiterId)
-  .get("/rooms/:id",getAllChatsByRoomId)
+  .get("/rooms/candidate/:id",passport.authenticate("candidateStrategy", { session: false }),getAllRoomsByCandidateId)
+  .get("/rooms/recruiter/:id",passport.authenticate('recruiterStrategy',{session:false}),getAllRoomsByRecruiterId)
+  .get("/rooms/:id",passport.authenticate("hybridStrategy", { session: false }),getAllChatsByRoomId)
   // .post("/chats",createChat)
 
   // like and dislike job
-  .get("/vaccancy/liked/:id",getLikeJobsByUserId)
-  .patch("/vaccancy/like/:id",likeJob)
-  .patch("/vaccancy/dislike/:id",dislikeJob)
+  .get("/vaccancy/liked/:id",passport.authenticate("candidateStrategy", { session: false }),getLikeJobsByUserId)
+  .patch("/vaccancy/like/:id",passport.authenticate("candidateStrategy", { session: false }),likeJob)
+  .patch("/vaccancy/dislike/:id",passport.authenticate("candidateStrategy", { session: false }),dislikeJob)
+  // handle view job
+  .patch("/vaccancy/view/:id",passport.authenticate("candidateStrategy", { session: false }),viewJobById)
   
 export default vaccancyRouter;
