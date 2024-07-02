@@ -22,7 +22,7 @@ model Candidate {
   image            String?
   position         String?
   city             String?
-  online           Boolean @default(false)
+  online           Boolean            @default(false)
   previousPosition PreviousPosition[]
   education        Education[]
   skills           Skills[]
@@ -30,10 +30,13 @@ model Candidate {
   accepted         AcceptedCandidate?
   refused          RefusedCandidate?
   proposed         ProposedCandidate?
+  viewed           ViewedCandidate?
   contacts         Contacts?
   telegram         Telegram?
-  letter           CandidateLetter[]
+  letter           String?
+  field            String?
   rooms            Room[]
+  notifications    Notification[]
   liked            LikedJobs?
   lastSeen         DateTime           @default(now())
   dateCreated      DateTime           @default(now())
@@ -41,63 +44,74 @@ model Candidate {
 }
 
 model Recruiter {
-  id                Int                 @id @default(autoincrement())
-  firstName         String
-  lastName          String
-  email             String              @unique
-  password          String
-  companyName       String?
-  about             String?
-  phone             String?
-  linkedIn          String?
-  website           String?
-  telegram          String?
-  country           String?
-  city              String?
-  street            String?
-  image             String?
-  online           Boolean @default(false)
-  jobsPosted        Job[]
-  rooms             Room[]
-  acceptedCandidate AcceptedCandidate[]
-  refusedCandidates RefusedCandidate[]
+  id                 Int                 @id @default(autoincrement())
+  firstName          String
+  lastName           String
+  email              String              @unique
+  password           String
+  companyName        String?
+  about              String?
+  phone              String?
+  linkedIn           String?
+  website            String?
+  telegram           String?
+  country            String?
+  city               String?
+  street             String?
+  image              String?
+  online             Boolean             @default(false)
+  jobsPosted         Job[]
+  rooms              Room[]
+  notifications    RecruiterNotification[]
+  acceptedCandidate  AcceptedCandidate[]
+  refusedCandidates  RefusedCandidate[]
   proposedCandidates ProposedCandidate[]
-  lastSeen         DateTime           @default(now())
-  dateCreated       DateTime            @default(now())
-  dateUpdated       DateTime            @updatedAt
+  lastSeen           DateTime            @default(now())
+  dateCreated        DateTime            @default(now())
+  dateUpdated        DateTime            @updatedAt
 }
 
 model Job {
-  id                Int                 @id @default(autoincrement())
-  companyName       String
-  companyWebsite    String
-  country           String
-  city              String
-  title             String
-  description       String
-  skills            Json
-  salary            Int
-  condition         String
-  recruiterId       Int
-  recruiter         Recruiter           @relation(fields: [recruiterId], references: [id])
-  candidatesApplied Candidate[]
-  acceptedCandidate AcceptedCandidate[]
-  refusedCandidate  RefusedCandidate[]
-  likedCandidates   LikedJobs[]
+  id                 Int                 @id @default(autoincrement())
+  companyName        String
+  companyWebsite     String
+  country            String
+  city               String
+  title              String
+  description        String
+  skills             Json
+  salary             Int
+  condition          String
+  field              String?
+  recruiterId        Int
+  recruiter          Recruiter           @relation(fields: [recruiterId], references: [id])
+  candidatesApplied  Candidate[]
+  acceptedCandidate  AcceptedCandidate[]
+  refusedCandidate   RefusedCandidate[]
+  likedCandidates    LikedJobs[]
   proposedCandidates ProposedCandidate[]
-  letters           CandidateLetter[]
-  dateCreated       DateTime            @default(now())
-  dateUpdated       DateTime            @updatedAt
+  viewedCandidates   ViewedCandidate[]
+  dateCreated        DateTime            @default(now())
+  dateUpdated        DateTime            @updatedAt
 }
 
 model ProposedCandidate {
-  id Int @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   candidateId  Int         @unique
   candidate    Candidate   @relation(fields: [candidateId], references: [id])
-  recruiters Recruiter[]
+  recruiters   Recruiter[]
   proposedJobs Job[]
-  dateCreated       DateTime            @default(now())
-  dateUpdated       DateTime            @updatedAt
+  dateCreated  DateTime    @default(now())
+  dateUpdated  DateTime    @updatedAt
+}
+
+model ViewedCandidate {
+  id          Int       @id @default(autoincrement())
+  candidateId Int       @unique
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  viewedJobs  Job[]
+  dateCreated DateTime  @default(now())
+  dateUpdated DateTime  @updatedAt
 }
 
 model AcceptedCandidate {
@@ -121,25 +135,13 @@ model RefusedCandidate {
 }
 
 model LikedJobs {
-  id          Int         @id @default(autoincrement())
-  candidateId Int         @unique
-  candidate   Candidate   @relation(fields: [candidateId], references: [id])
-  jobsLiked Job[]
-  dateCreated DateTime    @default(now())
-  dateUpdated DateTime    @updatedAt
-}
-
-model CandidateLetter {
   id          Int       @id @default(autoincrement())
-  message     String
-  candidateId Int
-  jobId       Int
+  candidateId Int       @unique
   candidate   Candidate @relation(fields: [candidateId], references: [id])
-  job         Job       @relation(fields: [jobId], references: [id])
+  jobsLiked   Job[]
   dateCreated DateTime  @default(now())
   dateUpdated DateTime  @updatedAt
 }
-
 
 model PreviousPosition {
   id          Int       @id @default(autoincrement())
@@ -179,6 +181,8 @@ model Projects {
   title       String
   link        String
   candidateId Int
+  description String?
+  images      Json?
   candidate   Candidate @relation(fields: [candidateId], references: [id])
   dateCreated DateTime  @default(now())
   dateUpdated DateTime  @updatedAt
@@ -197,10 +201,10 @@ model Contacts {
 model Chat {
   id          Int      @id @default(autoincrement())
   message     String
-  accountType    String
+  accountType String
   roomId      Int
-  delivered   Boolean @default(false)
-  read        Boolean @default(false)
+  delivered   Boolean  @default(false)
+  read        Boolean  @default(false)
   room        Room     @relation(fields: [roomId], references: [id])
   dateCreated DateTime @default(now())
   dateUpdated DateTime @updatedAt
@@ -219,11 +223,41 @@ model Room {
 }
 
 model Telegram {
-  id Int @id @default(autoincrement())
-  chatId Int
+  id          Int       @id @default(autoincrement())
+  chatId      Int
+  firstName   String
+  candidateId Int       @unique
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  dateCreated DateTime  @default(now())
+  dateUpdated DateTime  @updatedAt
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  jobId       Int
+  candidateId Int
+  roomId      Int
+  companyName String
+  jobTitle    String
+  invitation  Boolean
+  read        Boolean   @default(false)
+  proposal    Boolean   @default(false)
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  dateCreated DateTime  @default(now())
+  dateUpdated DateTime  @updatedAt
+}
+
+model RecruiterNotification {
+  id          Int       @id @default(autoincrement())
+  jobId       Int
+  candidateId Int
+  recruiterId Int
+  roomId      Int
   firstName String
-  candidateId Int @unique
-  candidate Candidate @relation(fields: [candidateId],references: [id])
+  lastName String
+  jobTitle    String
+  read        Boolean   @default(false)
+  recruiter   Recruiter @relation(fields: [recruiterId], references: [id])
   dateCreated DateTime  @default(now())
   dateUpdated DateTime  @updatedAt
 }

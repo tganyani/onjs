@@ -19,6 +19,11 @@ import {
   imageUpload,
   updateProfile,
   updateAbout,
+  refreshCandidateToken,
+  deleteCandidateProfileImage,
+  getCandidateLetter,
+  getCandidateNotifications,
+  updateReadCandidateNotifications,
 } from "../controllers/candidate/candidate.controllers.js";
 import {
   createCandatePreviousPosition,
@@ -46,52 +51,172 @@ import {
   updateCandateEducation,
 } from "../controllers/candidate/candidateEducation.controller.js";
 import { uploadCandidateProfile } from "../middleware/candidate.file.upload.middleware.js";
+import { uploadCandidateProjectImages } from "../middleware/candidate.projectImage.upload.js";
 
 candidateRouter
   .get(
-    "/candidates"
-    ,
-    // passport.authenticate("jwt", { session: false }),
-     getAllCandidates
+    "/candidates",
+    passport.authenticate('recruiterStrategy',{session:false}),
+    getAllCandidates
   )
-  .get("/candidates/:id", getCandidateById)
+  .get(
+    "/candidates/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getCandidateById
+  )
   .post("/candidates/email", getCandidateByEmail)
   .post("/candidates", createCandidate)
   .post("/candidates/login", candidateLogin)
   .delete(
     "/candidates/:id",
-    passport.authenticate("jwt", { session: false }),
+    passport.authenticate("candidateStrategy", { session: false }),
     deleteCandidateById
   )
+  // refresh token
+  .post("/candidates/refresh", refreshCandidateToken)
   // education routes
-  .post("/candidates/edu", createCandateEducation)
-  .patch("/candidates/edu/:id", updateCandateEducation)
-  .delete("/candidates/edu/:id", deleteCandateEducation)
-  .get("/candidates/edu/:id", getAllCandateEducation)
+  .post(
+    "/candidates/edu",
+    passport.authenticate("candidateStrategy", { session: false }),
+    createCandateEducation
+  )
+  .patch(
+    "/candidates/edu/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateCandateEducation
+  )
+  .delete(
+    "/candidates/edu/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandateEducation
+  )
+  .get(
+    "/candidates/edu/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getAllCandateEducation
+  )
   // previous positions routes
-  .post("/candidates/pos", createCandatePreviousPosition)
-  .patch("/candidates/pos/:id", updateCandatePreviousPosition)
-  .delete("/candidates/pos/:id", deleteCandatePreviousPosition)
-  .get("/candidates/pos/:id", getAllCandatePreviousPosition)
+  .post(
+    "/candidates/pos",
+    passport.authenticate("candidateStrategy", { session: false }),
+    createCandatePreviousPosition
+  )
+  .patch(
+    "/candidates/pos/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateCandatePreviousPosition
+  )
+  .delete(
+    "/candidates/pos/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandatePreviousPosition
+  )
+  .get(
+    "/candidates/pos/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getAllCandatePreviousPosition
+  )
   // skills routes
-  .post("/candidates/skills", createCandateSkills)
-  .patch("/candidates/skills/:id", updateCandateSkills)
-  .delete("/candidates/skills/:id", deleteCandateSkills)
-  .get("/candidates/skills/:id", getAllCandateSkills)
+  .post(
+    "/candidates/skills",
+    passport.authenticate("candidateStrategy", { session: false }),
+    createCandateSkills
+  )
+  .patch(
+    "/candidates/skills/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateCandateSkills
+  )
+  .delete(
+    "/candidates/skills/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandateSkills
+  )
+  .get(
+    "/candidates/skills/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getAllCandateSkills
+  )
   // projects routes
-  .post("/candidates/projects", createCandateProject)
-  .patch("/candidates/projects/:id", updateCandateProject)
-  .delete("/candidates/projects/:id", deleteCandateProject)
-  .get("/candidates/projects/:id", getAllCandateProject)
+  .post(
+    "/candidates/projects",
+    passport.authenticate("candidateStrategy", { session: false }),uploadCandidateProjectImages.array('projects'),
+    createCandateProject
+  )
+  .patch(
+    "/candidates/projects/:id",
+    passport.authenticate("candidateStrategy", { session: false }),uploadCandidateProjectImages.array('projects'),
+    updateCandateProject
+  )
+  .delete(
+    "/candidates/projects/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandateProject
+  )
+  .get(
+    "/candidates/projects/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getAllCandateProject
+  )
   // contacts routes
-  .post("/candidates/contacts", createCandateContact)
-  .patch("/candidates/contacts/:id", updateCandateContact)
-  .delete("/candidates/contacts:id", deleteCandateContact)
-  .get("/candidates/contacts/:id", getAllCandateContact)
+  .post(
+    "/candidates/contacts",
+    passport.authenticate("candidateStrategy", { session: false }),
+    createCandateContact
+  )
+  .patch(
+    "/candidates/contacts/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateCandateContact
+  )
+  .delete(
+    "/candidates/contacts:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandateContact
+  )
+  .get(
+    "/candidates/contacts/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    getAllCandateContact
+  )
 
   // profile image
-  .patch("/candidates/image/:id",uploadCandidateProfile.single('image'),imageUpload)
-  .patch("/candidates/profile/:id",updateProfile)
-  .patch("/candidates/about/:id",updateAbout)
+  .patch(
+    "/candidates/image/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    uploadCandidateProfile.single("image"),
+    imageUpload
+  )
+  .patch(
+    "/candidates/profile/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateProfile
+  )
+  // delete candidate profile image
+  .patch(
+    "/candidates/removeimage/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    deleteCandidateProfileImage
+  )
+  .patch(
+    "/candidates/about/:id",
+    passport.authenticate("candidateStrategy", { session: false }),
+    updateAbout
+  )
+// get candidate letter
+.get(
+  "/candidates/letter/:id",
+  passport.authenticate("candidateStrategy", { session: false }),
+  getCandidateLetter
+)
+// get candidate notifications getCandidateNotifications
+.get(
+  "/candidates/notifications/:id",
+  passport.authenticate("candidateStrategy", { session: false }),
+  getCandidateNotifications
+  
+)
+.patch("/candidates/notifications/:id",
+  passport.authenticate("candidateStrategy", { session: false }),updateReadCandidateNotifications)
 
-export default candidateRouter;
+  export default candidateRouter;

@@ -7,11 +7,10 @@ const ExtractJwt = extractjwt.ExtractJwt;
 
 var opts = {};
 opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
-opts.secretOrKey = "my-secret2";
+opts.secretOrKey = "my-secret";
 // opts.issuer = 'accounts.examplesoft.com';
 // opts.audience = 'yoursite.net';
 export const recruiterStrategy = new JwtStrategy(opts, function (jwt_payload, done) {
-  console.log(jwt_payload)
   const recruiter = prisma.recruiter.findUnique({
     where: {
       id: jwt_payload.data.id,
@@ -23,3 +22,5 @@ export const recruiterStrategy = new JwtStrategy(opts, function (jwt_payload, do
     return done(null, false);
   }
 });
+
+

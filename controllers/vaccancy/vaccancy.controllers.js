@@ -1,14 +1,49 @@
 import prisma from "../../lib/prisma.js";
 
 export const getAllJobs = async (req, res) => {
+  const skip = (Number(req.query.page) - 1) * 10;
   try {
     res.json(
       await prisma.job.findMany({
+        skip,
+        take: 10,
         orderBy: {
-          id: "desc",
+          dateUpdated: "desc",
+        },
+        where: {
+          OR: req.query?.title?.split(" ")?.map((term) => ({
+            title: {
+              contains: term,
+              mode: "insensitive",
+            },
+          })),
+          AND: {
+            city: {
+              contains: req.query?.city,
+              mode: "insensitive",
+            },
+
+            country: {
+              contains: req.query?.country,
+              mode: "insensitive",
+            },
+            field:
+              req.query?.field === "all"
+                ? {
+                    not: req.query?.field,
+                  }
+                : {
+                    equals: req.query?.field,
+                  },
+          },
         },
         include: {
           likedCandidates: {
+            select: {
+              candidateId: true,
+            },
+          },
+          viewedCandidates: {
             select: {
               candidateId: true,
             },
@@ -56,6 +91,7 @@ export const getJobById = async (req, res) => {
           skills: true,
           condition: true,
           dateUpdated: true,
+          field:true,
           recruiter: {
             select: {
               id: true,
@@ -68,8 +104,19 @@ export const getJobById = async (req, res) => {
                 select: {
                   id: true,
                   candidateId: true,
+                  name: true,
                 },
               },
+            },
+          },
+          likedCandidates: {
+            select: {
+              candidateId: true,
+            },
+          },
+          viewedCandidates: {
+            select: {
+              id: true,
             },
           },
           candidatesApplied: {
@@ -78,19 +125,11 @@ export const getJobById = async (req, res) => {
               firstName: true,
               lastName: true,
               jobsApplied: true,
+              about: true,
               telegram: {
                 select: {
                   chatId: true,
                   firstName: true,
-                },
-              },
-              letter: {
-                where: {
-                  jobId: Number(req.params.id),
-                },
-                select: {
-                  id: true,
-                  message: true,
                 },
               },
               accepted: {
@@ -102,7 +141,7 @@ export const getJobById = async (req, res) => {
                   },
                 },
               },
-              refused:{
+              refused: {
                 select: {
                   jobsRefused: {
                     select: {
@@ -110,7 +149,7 @@ export const getJobById = async (req, res) => {
                     },
                   },
                 },
-              }
+              },
             },
           },
         },
@@ -132,19 +171,19 @@ export const createJob = async (req, res) => {
     if (created) {
       res.json({
         message: "job successfully posted",
-        posted:true
+        posted: true,
       });
     } else {
       res.json({
         message: "error occured",
-        posted:false
+        posted: false,
       });
     }
   } catch (error) {
     console.error(error);
   }
 };
-// update job   
+// update job
 
 export const updateJob = async (req, res) => {
   try {
@@ -201,19 +240,79 @@ export const appyJobById = async (req, res) => {
         },
       },
     });
-    // creating the letter
-    await prisma.candidateLetter.create({
-      data: {
-        message: req.body.message,
+    // connect on view
+    await prisma.viewedCandidate.upsert({
+      where: {
         candidateId: Number(req.body.id),
-        jobId: Number(req.params.id),
+      },
+      update: {
+        viewedJobs: {
+          connect: {
+            id: Number(req.params.id),
+          },
+        },
+      },
+      create: {
+        candidateId: Number(req.body.id),
+        viewedJobs: {
+          connect: {
+            id: Number(req.params.id),
+          },
+        },
+      },
+    });
+    // update letter
+    await prisma.candidate.update({
+      where: {
+        id: Number(req.body.id),
+      },
+      data: {
+        letter: req.body.message,
       },
     });
     res.json({
       message: "job successfully connected",
+      connected:true
     });
   } catch (error) {
     console.error(error);
+    res.json({
+      message: "error",
+      connected:false
+    });
+  }
+};
+// handle viewed Job
+export const viewJobById = async (req, res) => {
+  try {
+    await prisma.viewedCandidate.upsert({
+      where: {
+        candidateId: Number(req.params.id),
+      },
+      update: {
+        viewedJobs: {
+          connect: {
+            id: Number(req.body.id),
+          },
+        },
+      },
+      create: {
+        candidateId: Number(req.params.id),
+        viewedJobs: {
+          connect: {
+            id: Number(req.body.id),
+          },
+        },
+      },
+    });
+    res.json({
+      message: "job successfully viewed",
+    });
+  } catch (error) {
+    console.error(error);
+    res.json({
+      message: "error flag",
+    });
   }
 };
 // handle job like
@@ -276,8 +375,12 @@ export const getLikeJobsByUserId = async (req, res) => {
         where: {
           candidateId: Number(req.params.id),
         },
+
         include: {
           jobsLiked: {
+            orderBy: {
+              id: "desc",
+            },
             include: {
               recruiter: {
                 select: {
@@ -285,11 +388,17 @@ export const getLikeJobsByUserId = async (req, res) => {
                   email: true,
                 },
               },
-              candidatesApplied: {
-                where: {
-                  id: Number(req.params.id),
-                },
+              viewedCandidates: {
                 select: {
+                  candidateId: true,
+                },
+              },
+              candidatesApplied: {
+                // where: {
+                //   id: Number(req.params.id),
+                // },
+                select: {
+                  id: true,
                   jobsApplied: {
                     select: {
                       id: true,
@@ -331,18 +440,26 @@ export const refuseCandidate = async (req, res) => {
         },
       },
     });
-    await prisma.acceptedCandidate.update({
+    const foundCandidate = await prisma.acceptedCandidate.findUnique({
       where: {
         candidateId: Number(req.params.id),
       },
-      data: {
-        jobsAccepted: {
-          disconnect: {
-            id: Number(req.body.id),
+    })
+    if(foundCandidate){
+      await prisma.acceptedCandidate.update({
+        where: {
+          candidateId: Number(req.params.id),
+        },
+        data: {
+          jobsAccepted: {
+            disconnect: {
+              id: Number(req.body.id),
+            },
           },
         },
-      },
-    });
+      });
+    }
+    
     res.json({
       message: "job successfully refused",
     });
@@ -374,18 +491,26 @@ export const acceptCandidate = async (req, res) => {
         },
       },
     });
-    await prisma.refusedCandidate.update({
+    const foundCandidate = await prisma.refusedCandidate.findUnique({
       where: {
         candidateId: Number(req.params.id),
       },
-      data: {
-        jobsRefused: {
-          disconnect: {
-            id: Number(req.body.id),
+    })
+    if(foundCandidate){
+      await prisma.refusedCandidate.update({
+        where: {
+          candidateId: Number(req.params.id),
+        },
+        data: {
+          jobsRefused: {
+            disconnect: {
+              id: Number(req.body.id),
+            },
           },
         },
-      },
-    });
+      });
+    }
+    
     res.json({
       message: "job successfully accepted",
     });
@@ -454,15 +579,27 @@ export const getAllJobsApplied = async (req, res) => {
       },
       include: {
         jobsApplied: {
+          orderBy: {
+            id: "desc",
+          },
           include: {
             recruiter: {
               select: {
                 id: true,
               },
             },
+            viewedCandidates: {
+              select: {
+                id: true,
+              },
+            },
+            candidatesApplied: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
-        letter: true,
         refused: {
           select: {
             jobsRefused: {
@@ -498,12 +635,16 @@ export const getJobsByRecruiterId = async (req, res) => {
         },
         include: {
           jobsPosted: {
+            orderBy: {
+              id: "desc",
+            },
             select: {
               id: true,
               title: true,
               description: true,
               country: true,
               city: true,
+              dateUpdated: true,
               candidatesApplied: {
                 select: {
                   id: true,
@@ -511,39 +652,6 @@ export const getJobsByRecruiterId = async (req, res) => {
               },
             },
           },
-        },
-      })
-    );
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-// get all letters by candidateId
-export const getAllLetters = async (req, res) => {
-  try {
-    res.json(
-      await prisma.candidateLetter.findMany({
-        where: {
-          candidateId: Number(req.params.id),
-        },
-        select: {
-          message: true,
-          id: true,
-        },
-      })
-    );
-  } catch (error) {
-    console.error(error);
-  }
-};
-// delete letter by Id
-export const deleteLetterById = async (req, res) => {
-  try {
-    res.json(
-      await prisma.candidateLetter.delete({
-        where: {
-          id: Number(req.params.id),
         },
       })
     );
@@ -560,8 +668,8 @@ export const getAllRoomsByCandidateId = async (req, res) => {
         where: {
           candidateId: Number(req.params.id),
         },
-        orderBy:{
-          dateUpdated:"desc"
+        orderBy: {
+          dateUpdated: "desc",
         },
         select: {
           name: true,
@@ -573,14 +681,14 @@ export const getAllRoomsByCandidateId = async (req, res) => {
               firstName: true,
               online: true,
               lastSeen: true,
-              image:true,
+              image: true,
             },
           },
-          chats:{
+          chats: {
             // take:1,
-            orderBy:{
-              id:"desc"
-            }
+            orderBy: {
+              id: "desc",
+            },
           },
         },
       })
@@ -597,8 +705,8 @@ export const getAllRoomsByRecruiterId = async (req, res) => {
         where: {
           recruiterId: Number(req.params.id),
         },
-        orderBy:{
-          dateUpdated:"desc"
+        orderBy: {
+          dateUpdated: "desc",
         },
         select: {
           name: true,
@@ -608,14 +716,14 @@ export const getAllRoomsByRecruiterId = async (req, res) => {
               id: true,
               firstName: true,
               online: true,
-              image:true,
+              image: true,
             },
           },
-          chats:{
+          chats: {
             // take:1,
-            orderBy:{
-              id:"desc"
-            }
+            orderBy: {
+              id: "desc",
+            },
           },
         },
       })
